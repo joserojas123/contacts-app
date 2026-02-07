@@ -17,7 +17,6 @@ export async function deleteContact(name: string) {
 
     const updated = lines.map((line, i) => {
         if (i === 0) return line;
-
         const [n, p] = line.split(",");
         return n === name ? `${n},${p},false` : line;
     });
@@ -31,7 +30,6 @@ export async function restoreContactAction(name: string) {
 
     const updated = lines.map((line, i) => {
         if (i === 0) return line;
-
         const [n, p] = line.split(",");
         return n === name ? `${n},${p},true` : line;
     });
@@ -64,6 +62,7 @@ export async function addContactAction(name: string, phone: string) {
     fs.appendFileSync(filePath, `\n${name},${phone},true`);
 }
 
+/* ---------- actualizar contacto ---------- */
 export async function updateContactAction(
     oldName: string,
     newName: string,
@@ -71,24 +70,16 @@ export async function updateContactAction(
 ) {
     const lines = readLines();
 
-    // Validaciones
     for (const line of lines.slice(1)) {
         const [n, p] = line.split(",");
-        if (n !== oldName && n === newName) {
-            throw new Error("Nombre duplicado");
-        }
-        if (p === newPhone && n !== oldName) {
-            throw new Error("Celular duplicado");
-        }
+        if (n !== oldName && n === newName) throw new Error("Nombre duplicado");
+        if (p === newPhone && n !== oldName) throw new Error("Celular duplicado");
     }
 
     const updated = lines.map((line, i) => {
         if (i === 0) return line;
-
         const [n, p, active] = line.split(",");
-        if (n === oldName) {
-            return `${newName},${newPhone},${active}`;
-        }
+        if (n === oldName) return `${newName},${newPhone},${active}`;
         return line;
     });
 

@@ -40,6 +40,7 @@ export default function ContactsClient({ contacts }: { contacts: Contact[] }) {
     const addContact = async (name: string, phone: string) => {
         await addContactAction(name, phone);
         setContactList([...contactList, { name, phone, active: true }]);
+        setShowAdd(false);
     };
 
     const confirmDeleteSoft = async () => {
@@ -80,6 +81,7 @@ export default function ContactsClient({ contacts }: { contacts: Contact[] }) {
                 c.name === oldName ? { ...c, name, phone } : c
             )
         );
+        setEditContact(null);
     };
 
     return (
@@ -105,6 +107,30 @@ export default function ContactsClient({ contacts }: { contacts: Contact[] }) {
                         placeholder="Buscar..."
                         className="w-full px-4 py-2 border rounded text-black"
                     />
+                </div>
+
+                {/* TABS */}
+                <div className="flex justify-center gap-4 px-4 mt-3">
+                    <button
+                        onClick={() => setView("active")}
+                        className={`px-4 py-1 rounded ${
+                            view === "active"
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 text-black"
+                        }`}
+                    >
+                        Activos
+                    </button>
+                    <button
+                        onClick={() => setView("trash")}
+                        className={`px-4 py-1 rounded ${
+                            view === "trash"
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 text-black"
+                        }`}
+                    >
+                        Papelera
+                    </button>
                 </div>
 
                 {/* LISTA */}
@@ -152,18 +178,54 @@ export default function ContactsClient({ contacts }: { contacts: Contact[] }) {
                     onClose={() => setShowAdd(false)}
                 />
             )}
+
+            {/* MODAL ELIMINAR (SOFT) */}
+            {deleteSoft && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded w-80">
+                        <h2 className="font-semibold text-black mb-4">
+                            ¿Enviar contacto a la papelera?
+                        </h2>
+                        <p className="text-sm text-gray-700 mb-4">{deleteSoft.name}</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setDeleteSoft(null)}>Cancelar</button>
+                            <button
+                                onClick={confirmDeleteSoft}
+                                className="text-red-600"
+                            >
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL ELIMINAR DEFINITIVO */}
+            {deleteHard && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded w-80">
+                        <h2 className="font-semibold text-black mb-4">
+                            Eliminar definitivamente
+                        </h2>
+                        <p className="text-sm text-gray-700 mb-4">{deleteHard.name} no podrá recuperarse</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setDeleteHard(null)}>Cancelar</button>
+                            <button
+                                onClick={confirmDeleteHard}
+                                className="text-red-600"
+                            >
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
 
-/* ---------- EDIT MODAL ---------- */
-
-function EditContactModal({
-                              contact,
-                              contacts,
-                              onSave,
-                              onClose,
-                          }: any) {
+/* ---------- MODAL EDITAR ---------- */
+function EditContactModal({ contact, contacts, onSave, onClose }: any) {
     const [name, setName] = useState(contact.name);
     const [phone, setPhone] = useState(contact.phone);
     const [error, setError] = useState("");
@@ -192,7 +254,6 @@ function EditContactModal({
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
             <div className="bg-white p-6 rounded w-80">
                 <h2 className="mb-4 font-semibold text-black">✏️ Editar contacto</h2>
-
                 <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -203,14 +264,61 @@ function EditContactModal({
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full mb-2 border px-3 py-2 rounded text-black"
                 />
-
                 {error && <p className="text-red-600 text-sm">{error}</p>}
-
                 <div className="flex justify-end gap-3 mt-4">
                     <button onClick={onClose}>Cancelar</button>
-                    <button onClick={submit} className="text-blue-600">
-                        Guardar
-                    </button>
+                    <button onClick={submit} className="text-blue-600">Guardar</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ---------- MODAL AGREGAR ---------- */
+function AddContactModal({ contacts, onAdd, onClose }: { contacts: Contact[], onAdd: (name: string, phone: string) => void, onClose: () => void }) {
+    const [name, setName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [error, setError] = useState("");
+
+    const submit = () => {
+        if (!name || !phone) {
+            setError("Todos los campos son obligatorios");
+            return;
+        }
+
+        if (contacts.some((c) => c.name === name)) {
+            setError("El nombre ya existe");
+            return;
+        }
+
+        if (contacts.some((c) => c.phone === phone)) {
+            setError("El celular ya existe");
+            return;
+        }
+
+        onAdd(name, phone);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+            <div className="bg-white p-6 rounded w-80">
+                <h2 className="font-semibold mb-4 text-black">➕ Nuevo contacto</h2>
+                <input
+                    placeholder="Nombre"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full mb-3 border px-3 py-2 rounded text-black"
+                />
+                <input
+                    placeholder="Celular"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full mb-3 border px-3 py-2 rounded text-black"
+                />
+                {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+                <div className="flex justify-end gap-3">
+                    <button onClick={onClose}>Cancelar</button>
+                    <button onClick={submit} className="text-blue-600">Agregar</button>
                 </div>
             </div>
         </div>
