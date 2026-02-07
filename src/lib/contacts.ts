@@ -1,40 +1,31 @@
 import fs from "fs";
 import path from "path";
-import { Contact } from "@/types/contact";
 
 const filePath = path.join(process.cwd(), "data", "contacts.csv");
 
-export function getContacts(): Contact[] {
-    const file = fs.readFileSync(filePath, "utf-8");
-
-    const [, ...rows] = file.split("\n");
-
-    return rows
-        .filter(Boolean)
-        .map(row => {
-            const [name, phone, active] = row.split(",");
-            return {
-                name,
-                phone,
-                active: active === "true",
-            };
-        })
-        .filter(contact => contact.active);
-}
-
-export function deactivateContact(name: string) {
+function updateContact(name: string, activeValue: boolean) {
     const file = fs.readFileSync(filePath, "utf-8");
     const lines = file.split("\n");
 
     const updated = lines.map((line, index) => {
-        if (index === 0) return line; // header
+        if (index === 0) return line;
 
-        const [n, phone, active] = line.split(",");
-        if (n === name) {
-            return `${n},${phone},false`;
+        const [n, phone] = line.split(",");
+
+        if (n?.trim() === name) {
+            return `${n},${phone},${activeValue}`;
         }
+
         return line;
     });
 
     fs.writeFileSync(filePath, updated.join("\n"));
+}
+
+export function deactivateContact(name: string) {
+    updateContact(name, false);
+}
+
+export function restoreContact(name: string) {
+    updateContact(name, true);
 }

@@ -1,4 +1,4 @@
 name,phone,active
-Juan Perez,999111222,true
+Juan Perez,999111222,false
 Maria Lopez,988777666,true
-Carlos Diaz,977555444,false
+Carlos Diaz,977555444,true

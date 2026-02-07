@@ -1,8 +1,8 @@
-import { getContacts } from "@/lib/contacts";
+import { readContacts } from "@/lib/readContacts";
 import ContactsClient from "@/components/ContactsClient";
 
-export default function HomePage() {
-    const contacts = getContacts();
+export default function Page() {
+    const contacts = readContacts();
 
     return <ContactsClient contacts={contacts} />;
 }

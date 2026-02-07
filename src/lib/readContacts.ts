@@ -18,7 +18,6 @@ export function readContacts(): Contact[] {
     return rows
         .map((row) => {
             const [name, phone, active] = row.split(",");
-
             if (!name || !phone || !active) return null;
 
             return {
@@ -27,8 +26,5 @@ export function readContacts(): Contact[] {
                 active: active.trim() === "true",
             };
         })
-        .filter(
-            (c): c is Contact =>
-                c !== null && c.active
-        );
+        .filter((c): c is Contact => c !== null);
 }
