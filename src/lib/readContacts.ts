@@ -1,23 +1,34 @@
 import fs from "fs";
 import path from "path";
+import { Contact } from "@/types/contact";
 
-export type Contact = {
-    name: string;
-    phone: string;
-};
+const filePath = path.join(process.cwd(), "data", "contacts.csv");
 
-export function getContactsFromCSV(): Contact[] {
-    const filePath = path.join(process.cwd(), "src/data/contacts.csv");
-    const file = fs.readFileSync(filePath, "utf8");
+export function readContacts(): Contact[] {
+    if (!fs.existsSync(filePath)) return [];
 
-    const lines = file.trim().split("\n");
-    const [, ...rows] = lines; // quitar header
+    const file = fs.readFileSync(filePath, "utf-8").trim();
+    if (!file) return [];
 
-    return rows.map(row => {
-        const [name, phone] = row.split(",");
-        return {
-            name: name.trim(),
-            phone: phone.trim(),
-        };
-    });
+    const lines = file.split("\n");
+    if (lines.length <= 1) return [];
+
+    const [, ...rows] = lines;
+
+    return rows
+        .map((row) => {
+            const [name, phone, active] = row.split(",");
+
+            if (!name || !phone || !active) return null;
+
+            return {
+                name: name.trim(),
+                phone: phone.trim(),
+                active: active.trim() === "true",
+            };
+        })
+        .filter(
+            (c): c is Contact =>
+                c !== null && c.active
+        );
 }
