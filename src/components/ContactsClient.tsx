@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     deleteContact,
     restoreContactAction,
     deleteContactForeverAction,
+    addContactAction,
+    updateContactAction,
 } from "@/app/actions";
 
 export type Contact = {
@@ -13,160 +15,119 @@ export type Contact = {
     active: boolean;
 };
 
-type Props = {
-    contacts: Contact[];
-};
-
-export default function ContactsClient({ contacts }: Props) {
+export default function ContactsClient({ contacts }: { contacts: Contact[] }) {
     const [contactList, setContactList] = useState<Contact[]>(contacts);
     const [search, setSearch] = useState("");
     const [view, setView] = useState<"active" | "trash">("active");
 
-    const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
-    const [contactToDeleteForever, setContactToDeleteForever] =
-        useState<Contact | null>(null);
+    const [deleteSoft, setDeleteSoft] = useState<Contact | null>(null);
+    const [deleteHard, setDeleteHard] = useState<Contact | null>(null);
+    const [editContact, setEditContact] = useState<Contact | null>(null);
+    const [showAdd, setShowAdd] = useState(false);
 
-    const filteredContacts = useMemo(() => {
-        return contactList.filter(
-            (c) =>
-                c.active === (view === "active") &&
-                c.name.toLowerCase().includes(search.toLowerCase())
-        );
-    }, [contactList, search, view]);
+    const filtered = useMemo(
+        () =>
+            contactList.filter(
+                (c) =>
+                    c.active === (view === "active") &&
+                    c.name.toLowerCase().includes(search.toLowerCase())
+            ),
+        [contactList, search, view]
+    );
 
     /* ---------- acciones ---------- */
 
-    const confirmDelete = async () => {
-        if (!contactToDelete) return;
+    const addContact = async (name: string, phone: string) => {
+        await addContactAction(name, phone);
+        setContactList([...contactList, { name, phone, active: true }]);
+    };
 
-        await deleteContact(contactToDelete.name);
-
+    const confirmDeleteSoft = async () => {
+        if (!deleteSoft) return;
+        await deleteContact(deleteSoft.name);
         setContactList((prev) =>
             prev.map((c) =>
-                c.name === contactToDelete.name ? { ...c, active: false } : c
+                c.name === deleteSoft.name ? { ...c, active: false } : c
             )
         );
-
-        setContactToDelete(null);
+        setDeleteSoft(null);
     };
 
-    const restore = async (contact: Contact) => {
-        await restoreContactAction(contact.name);
+    const restore = async (c: Contact) => {
+        await restoreContactAction(c.name);
+        setContactList((prev) =>
+            prev.map((x) => (x.name === c.name ? { ...x, active: true } : x))
+        );
+    };
 
+    const confirmDeleteHard = async () => {
+        if (!deleteHard) return;
+        await deleteContactForeverAction(deleteHard.name);
+        setContactList((prev) =>
+            prev.filter((c) => c.name !== deleteHard.name)
+        );
+        setDeleteHard(null);
+    };
+
+    const updateContact = async (
+        oldName: string,
+        name: string,
+        phone: string
+    ) => {
+        await updateContactAction(oldName, name, phone);
         setContactList((prev) =>
             prev.map((c) =>
-                c.name === contact.name ? { ...c, active: true } : c
+                c.name === oldName ? { ...c, name, phone } : c
             )
         );
     };
-
-    const confirmDeleteForever = async () => {
-        if (!contactToDeleteForever) return;
-
-        await deleteContactForeverAction(contactToDeleteForever.name);
-
-        setContactList((prev) =>
-            prev.filter((c) => c.name !== contactToDeleteForever.name)
-        );
-
-        setContactToDeleteForever(null);
-    };
-
-    /* ---------- UI ---------- */
 
     return (
         <main className="h-screen bg-gray-100 flex justify-center">
-            <div className="w-full max-w-xl flex flex-col">
+            <div className="w-full max-w-xl">
 
-                {/* ====== PESTAÑAS SUPERIORES ====== */}
-                <div className="flex bg-white shadow">
+                {/* HEADER */}
+                <div className="p-4 flex items-center justify-between">
+                    <h1 className="text-3xl font-bold text-black">📇 Mis Contactos</h1>
                     <button
-                        onClick={() => setView("active")}
-                        className={`flex-1 py-3 font-semibold ${
-                            view === "active"
-                                ? "border-b-4 border-blue-600 text-blue-600"
-                                : "text-gray-500"
-                        }`}
+                        onClick={() => setShowAdd(true)}
+                        className="w-10 h-10 bg-blue-600 text-white rounded-full text-2xl"
                     >
-                        📇 Activos
-                    </button>
-
-                    <button
-                        onClick={() => setView("trash")}
-                        className={`flex-1 py-3 font-semibold ${
-                            view === "trash"
-                                ? "border-b-4 border-red-600 text-red-600"
-                                : "text-gray-500"
-                        }`}
-                    >
-                        🗑️ Papelera
+                        +
                     </button>
                 </div>
 
-                {/* ====== HEADER FIJO ====== */}
-                <div className="sticky top-0 bg-gray-100 z-10 p-4">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-4">
-                        📇 Mis Contactos
-                    </h1>
-
+                {/* BUSCADOR */}
+                <div className="px-4">
                     <input
-                        type="text"
-                        placeholder="Buscar por nombre..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-900"
+                        placeholder="Buscar..."
+                        className="w-full px-4 py-2 border rounded text-black"
                     />
                 </div>
 
-                {/* ====== LISTA SCROLL ====== */}
-                <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4">
-                    {filteredContacts.length === 0 && (
-                        <p className="text-center text-gray-500">
-                            No hay contactos
-                        </p>
-                    )}
-
-                    {filteredContacts.map((contact) => (
+                {/* LISTA */}
+                <div className="p-4 space-y-3">
+                    {filtered.map((c) => (
                         <div
-                            key={contact.name}
-                            className="bg-white p-5 rounded-xl shadow flex items-center justify-between"
+                            key={c.name}
+                            className="bg-white p-4 rounded shadow flex justify-between items-center"
                         >
                             <div>
-                                <p className="font-semibold text-gray-800">
-                                    {contact.name}
-                                </p>
-                                <p className="text-gray-500 text-sm">
-                                    {contact.phone}
-                                </p>
+                                <p className="font-semibold text-black">{c.name}</p>
+                                <p className="text-sm text-gray-700">{c.phone}</p>
                             </div>
 
                             {view === "active" ? (
-                                <button
-                                    onClick={() => setContactToDelete(contact)}
-                                    className="text-red-500 text-xl"
-                                    title="Eliminar"
-                                >
-                                    ❌
-                                </button>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setEditContact(c)}>✏️</button>
+                                    <button onClick={() => setDeleteSoft(c)}>❌</button>
+                                </div>
                             ) : (
                                 <div className="flex gap-3">
-                                    <button
-                                        onClick={() => restore(contact)}
-                                        className="text-green-600 text-xl"
-                                        title="Restaurar"
-                                    >
-                                        ♻️
-                                    </button>
-
-                                    <button
-                                        onClick={() =>
-                                            setContactToDeleteForever(contact)
-                                        }
-                                        className="text-red-600 text-xl"
-                                        title="Eliminar definitivamente"
-                                    >
-                                        🗑️
-                                    </button>
+                                    <button onClick={() => restore(c)}>♻️</button>
+                                    <button onClick={() => setDeleteHard(c)}>🗑️</button>
                                 </div>
                             )}
                         </div>
@@ -175,71 +136,80 @@ export default function ContactsClient({ contacts }: Props) {
             </div>
 
             {/* MODALES */}
-            {contactToDelete && (
-                <Modal
-                    title="Eliminar contacto"
-                    message={`¿Eliminar a ${contactToDelete.name}?`}
-                    onCancel={() => setContactToDelete(null)}
-                    onConfirm={confirmDelete}
+            {editContact && (
+                <EditContactModal
+                    contact={editContact}
+                    contacts={contactList}
+                    onClose={() => setEditContact(null)}
+                    onSave={updateContact}
                 />
             )}
 
-            {contactToDeleteForever && (
-                <Modal
-                    title="Eliminar definitivamente"
-                    message="Este contacto se eliminará para siempre. ¿Deseas continuar?"
-                    danger
-                    onCancel={() => setContactToDeleteForever(null)}
-                    onConfirm={confirmDeleteForever}
+            {showAdd && (
+                <AddContactModal
+                    contacts={contactList}
+                    onAdd={addContact}
+                    onClose={() => setShowAdd(false)}
                 />
             )}
         </main>
     );
 }
 
-/* ---------- MODAL ---------- */
+/* ---------- EDIT MODAL ---------- */
 
-function Modal({
-                   title,
-                   message,
-                   onCancel,
-                   onConfirm,
-                   danger = false,
-               }: {
-    title: string;
-    message: string;
-    onCancel: () => void;
-    onConfirm: () => void;
-    danger?: boolean;
-}) {
+function EditContactModal({
+                              contact,
+                              contacts,
+                              onSave,
+                              onClose,
+                          }: any) {
+    const [name, setName] = useState(contact.name);
+    const [phone, setPhone] = useState(contact.phone);
+    const [error, setError] = useState("");
+
+    const submit = async () => {
+        if (!name || !phone) {
+            setError("Campos obligatorios");
+            return;
+        }
+
+        if (contacts.some((c: Contact) => c.name === name && c.name !== contact.name)) {
+            setError("Nombre duplicado");
+            return;
+        }
+
+        if (contacts.some((c: Contact) => c.phone === phone && c.name !== contact.name)) {
+            setError("Celular duplicado");
+            return;
+        }
+
+        await onSave(contact.name, name, phone);
+        onClose();
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-80">
-                <h2
-                    className={`text-lg font-semibold mb-4 ${
-                        danger ? "text-red-600" : "text-gray-800"
-                    }`}
-                >
-                    {title}
-                </h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+            <div className="bg-white p-6 rounded w-80">
+                <h2 className="mb-4 font-semibold text-black">✏️ Editar contacto</h2>
 
-                <p className="mb-6 text-gray-700">{message}</p>
+                <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full mb-2 border px-3 py-2 rounded text-black"
+                />
+                <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full mb-2 border px-3 py-2 rounded text-black"
+                />
 
-                <div className="flex justify-end gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 bg-gray-200 rounded-lg"
-                    >
-                        Cancelar
-                    </button>
+                {error && <p className="text-red-600 text-sm">{error}</p>}
 
-                    <button
-                        onClick={onConfirm}
-                        className={`px-4 py-2 text-white rounded-lg ${
-                            danger ? "bg-red-600" : "bg-blue-600"
-                        }`}
-                    >
-                        Confirmar
+                <div className="flex justify-end gap-3 mt-4">
+                    <button onClick={onClose}>Cancelar</button>
+                    <button onClick={submit} className="text-blue-600">
+                        Guardar
                     </button>
                 </div>
             </div>
